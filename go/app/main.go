@@ -2,10 +2,10 @@ package main
 
 import (
 	"crypto/sha256"
+	"database/sql"
 	"encoding/hex"
-	"encoding/json"
+	_"encoding/json"
 	"fmt"
-	_ "io/ioutil"
 	"net/http"
 	"os"
 	"path"
@@ -15,6 +15,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/labstack/gommon/log"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 const (
@@ -41,48 +42,77 @@ func root(c echo.Context) error {
 }
 
 func getItem(c echo.Context) error {
-	res := getJsonfile("app/items.json")
+	db, err := sql.Open("sqlite3", "../db/mercari.sqlite3")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
+
+	rows, _ := db.Query("SELECT * FROM items")
+	res := rowsToResponse(rows)
 	return c.JSON(http.StatusOK, res)
 }
 
 func getItemWithId(c echo.Context) error {
+	db, err := sql.Open("sqlite3", "../db/mercari.sqlite3")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
+
 	idString := c.Param("id")
 	id, _ := strconv.Atoi(idString)
-	currentFile := getJsonfile("app/items.json")
-	res := currentFile.Items[id-1]
+	rows, _ := db.Query("SELECT * FROM items WHERE id=$1", id)
+	res := rowsToResponse(rows)
 	return c.JSON(http.StatusOK, res)
 }
 
-func updateFileJson(item Item) error {
-	currentFile := getJsonfile("app/items.json")
-	currentFile.Items = append(currentFile.Items, item)
-	err := currentFile.creatNewJsonfile("app/items.json")
-	return err
+func getItemWithName(c echo.Context) error {
+	db, err := sql.Open("sqlite3", "../db/mercari.sqlite3")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
+
+	matchedName := c.QueryParam("keyword")
+	rows, _ := db.Query("SELECT * FROM items WHERE name=$1", matchedName)
+	res := rowsToResponse(rows)
+	return c.JSON(http.StatusOK, res)
 }
 
-func getJsonfile(filename string) Json {
-	var currentFile Json
-	currentFileBytes, _ := os.ReadFile(filename)
-	_ = json.Unmarshal(currentFileBytes, &currentFile)
-	return currentFile
+func rowToString(rows *sql.Rows) Item {
+	var id_int int
+	var item Item
+	if err := rows.Scan(&id_int, &item.Name, &item.Category, &item.Image); err != nil {
+		log.Fatal(err)
+	}
+	return item
 }
 
-func (j Json) creatNewJsonfile(filename string) error {
-	newFileBytes, _ := json.Marshal(j)
-	err := os.WriteFile(filename, newFileBytes, 0644)
-	return err
+func rowsToResponse(rows *sql.Rows) []Item {
+	var res []Item
+	for rows.Next() {
+		item := rowToString(rows)
+		res = append(res, item)
+	}
+	return res
 }
 
 func addItem(c echo.Context) error {
 	// Get form data
+	db, err := sql.Open("sqlite3", "../db/mercari.sqlite3")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
 	name := c.FormValue("name")
 	category := c.FormValue("category")
-	imagePass := c.FormValue("image")
-	imageFile, _ := os.ReadFile(imagePass)
-	imageHash32bytes := sha256.Sum256(imageFile)
-	image := hex.EncodeToString(imageHash32bytes[:]) + ".jpg"
+	image := imageToHash(c.FormValue("image"))
 	item := Item{Name: name, Category: category, Image: image}
-	_ = updateFileJson(item)
+	_, err = db.Exec("INSERT INTO items (name, category, image) VALUES ($1, $2, $3)", item.Name, item.Category, item.Image)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	c.Logger().Infof("Receive item: %s", name)
 
@@ -90,6 +120,13 @@ func addItem(c echo.Context) error {
 	res := Response{Message: message}
 
 	return c.JSON(http.StatusOK, res)
+}
+
+func imageToHash(imagePass string) string {
+	imageFile, _ := os.ReadFile(imagePass)
+	imageHash32bytes := sha256.Sum256(imageFile)
+	image := hex.EncodeToString(imageHash32bytes[:]) + ".jpg"
+	return image
 }
 
 func getImg(c echo.Context) error {
@@ -130,6 +167,7 @@ func main() {
 	e.POST("/items", addItem)
 	e.GET("/image/:imageFilename", getImg)
 	e.GET("/items/:id", getItemWithId)
+	e.GET("/search", getItemWithName)
 
 	// Start server
 	e.Logger.Fatal(e.Start(":9000"))
