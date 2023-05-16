@@ -48,7 +48,10 @@ func getItem(c echo.Context) error {
 	}
 	defer db.Close()
 
-	rows, _ := db.Query("SELECT * FROM items")
+	rows, err := db.Query("SELECT items.name AS item_name, category.name AS category_name, items.image_filename FROM items INNER JOIN category ON items.category_id=category.id")
+	if err != nil {
+		log.Fatal(err)
+	}
 	res := rowsToResponse(rows)
 	return c.JSON(http.StatusOK, res)
 }
@@ -62,7 +65,7 @@ func getItemWithId(c echo.Context) error {
 
 	idString := c.Param("id")
 	id, _ := strconv.Atoi(idString)
-	rows, _ := db.Query("SELECT * FROM items WHERE id=$1", id)
+	rows, _ := db.Query("SELECT items.name AS item_name, category.name AS category_name, items.image_filename FROM items INNER JOIN category ON items.category_id=category.id WHERE items.id=$1", id)
 	res := rowsToResponse(rows)
 	return c.JSON(http.StatusOK, res)
 }
@@ -75,15 +78,14 @@ func getItemWithName(c echo.Context) error {
 	defer db.Close()
 
 	matchedName := c.QueryParam("keyword")
-	rows, _ := db.Query("SELECT * FROM items WHERE name=$1", matchedName)
+	rows, _ := db.Query("SELECT items.name AS item_name, category.name AS category_name, items.image_filename FROM items INNER JOIN category ON items.category_id=category.id WHERE items.name=$1", matchedName)
 	res := rowsToResponse(rows)
 	return c.JSON(http.StatusOK, res)
 }
 
 func rowToString(rows *sql.Rows) Item {
-	var id_int int
 	var item Item
-	if err := rows.Scan(&id_int, &item.Name, &item.Category, &item.Image); err != nil {
+	if err := rows.Scan(&item.Name, &item.Category, &item.Image); err != nil {
 		log.Fatal(err)
 	}
 	return item
@@ -105,14 +107,16 @@ func addItem(c echo.Context) error {
 		log.Fatal(err)
 	}
 	defer db.Close()
+
 	name := c.FormValue("name")
 	category := c.FormValue("category")
-	image := imageToHash(c.FormValue("image"))
-	item := Item{Name: name, Category: category, Image: image}
-	_, err = db.Exec("INSERT INTO items (name, category, image) VALUES ($1, $2, $3)", item.Name, item.Category, item.Image)
-	if err != nil {
-		log.Fatal(err)
-	}
+	image_filename := imageToHash(c.FormValue("image"))
+
+	_, _ = db.Exec("INSERT INTO category (name) VALUES ($1)", category)
+	row:= db.QueryRow("SELECT id FROM category WHERE name=$1", category)
+	var category_id int
+	_ = row.Scan(&category_id)
+	_, _ = db.Exec("INSERT INTO items (name, category_id, image_filename) VALUES ($1, $2, $3)", name, category_id, image_filename)
 
 	c.Logger().Infof("Receive item: %s", name)
 
