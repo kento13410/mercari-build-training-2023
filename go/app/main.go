@@ -112,11 +112,17 @@ func addItem(c echo.Context) error {
 	category := c.FormValue("category")
 	image_filename := imageToHash(c.FormValue("image"))
 
-	_, _ = db.Exec("INSERT INTO category (name) VALUES ($1)", category)
-	row:= db.QueryRow("SELECT id FROM category WHERE name=$1", category)
+	_, err = db.Exec("INSERT INTO category (name) VALUES ($1)", category)
+	if err != nil {
+		log.Fatal(err)
+	}
+	row := db.QueryRow("SELECT id FROM category WHERE name=$1", category)
 	var category_id int
 	_ = row.Scan(&category_id)
-	_, _ = db.Exec("INSERT INTO items (name, category_id, image_filename) VALUES ($1, $2, $3)", name, category_id, image_filename)
+	_, err = db.Exec("INSERT INTO items (name, category_id, image_filename) VALUES ($1, $2, $3)", name, category_id, image_filename)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	c.Logger().Infof("Receive item: %s", name)
 
@@ -127,7 +133,10 @@ func addItem(c echo.Context) error {
 }
 
 func imageToHash(imagePass string) string {
-	imageFile, _ := os.ReadFile(imagePass)
+	imageFile, err := os.ReadFile(imagePass)
+	if err != nil {
+		log.Fatal(err)
+	}
 	imageHash32bytes := sha256.Sum256(imageFile)
 	image := hex.EncodeToString(imageHash32bytes[:]) + ".jpg"
 	return image
