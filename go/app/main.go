@@ -110,7 +110,7 @@ func addItem(c echo.Context) error {
 
 	name := c.FormValue("name")
 	category := c.FormValue("category")
-	image_filename := imageToHash(c.FormValue("image"))
+  image_filename := imageToHash(c.FormValue("image"))
 
 	_, err = db.Exec("INSERT INTO category (name) VALUES ($1)", category)
 	if err != nil {
@@ -133,10 +133,11 @@ func addItem(c echo.Context) error {
 }
 
 func imageToHash(imagePass string) string {
-	imageFile, err := os.ReadFile(imagePass)
+  imageFile, err := os.ReadFile(imagePass)
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	imageHash32bytes := sha256.Sum256(imageFile)
 	image := hex.EncodeToString(imageHash32bytes[:]) + ".jpg"
 	return image
