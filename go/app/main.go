@@ -47,7 +47,10 @@ func getItem(c echo.Context) error {
 
 func getItemWithId(c echo.Context) error {
 	idString := c.Param("id")
-	id, _ := strconv.Atoi(idString)
+	id, err := strconv.Atoi(idString)
+	if err != nil {
+		log.Fatal(err)
+	}
 	currentFile := getJsonfile("app/items.json")
 	res := currentFile.Items[id-1]
 	return c.JSON(http.StatusOK, res)
