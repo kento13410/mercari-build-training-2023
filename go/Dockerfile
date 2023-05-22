@@ -11,7 +11,7 @@ ENV GOPATH=
 RUN go mod download
 RUN apk add --no-cache git
 
-COPY . .
+COPY go .
 WORKDIR /go/app
 RUN go build -o main .
 
