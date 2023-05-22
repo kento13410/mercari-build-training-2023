@@ -82,10 +82,7 @@ func addItem(c echo.Context) error {
 	category := c.FormValue("category")
 	image := imageToHash(c.FormValue("image"))
 	item := Item{Name: name, Category: category, Image: image}
-	err := updateFileJson(item)
-	if err != nil {
-		log.Fatal(err)
-	}
+	_ = updateFileJson(item)
 
 	c.Logger().Infof("Receive item: %s", name)
 
