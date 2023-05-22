@@ -5,7 +5,7 @@ WORKDIR /go
 
 COPY go.mod ./
 COPY go.sum ./
-COPY app ./
+COPY go/app ./
 
 ENV GOPATH=
 RUN go mod download
