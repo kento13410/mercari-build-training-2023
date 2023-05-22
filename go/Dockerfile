@@ -3,15 +3,15 @@ FROM golang:1.20.2-alpine as builder
 
 WORKDIR /go
 
-COPY go/go.mod ./
-COPY go/go.sum ./
-COPY go/app ./
+COPY go.mod ./
+COPY go.sum ./
+COPY app ./
 
 ENV GOPATH=
 RUN go mod download
 RUN apk add --no-cache git
 
-COPY go .
+COPY . .
 WORKDIR /go/app
 RUN go build -o main .
 
