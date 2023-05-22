@@ -13,7 +13,7 @@ RUN apk add --no-cache git
 
 COPY . .
 WORKDIR /go/app
-RUN go build -o app/main .
+RUN go build -o main .
 
 
 # 実行環境
