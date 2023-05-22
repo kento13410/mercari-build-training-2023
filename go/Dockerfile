@@ -3,8 +3,8 @@ FROM golang:1.20.2-alpine as builder
 
 WORKDIR /go
 
-COPY go.mod ./
-COPY go.sum ./
+COPY go/go.mod ./
+COPY go/go.sum ./
 COPY go/app ./
 
 ENV GOPATH=
